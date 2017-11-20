@@ -20,11 +20,12 @@ import os
 import time
 import json
 import random
+import pickle
 import platform
 
 
 import argparse
-#from selenium import webdriver
+# from selenium import webdriver
 
 
 import sys
@@ -65,12 +66,32 @@ def tag_val(tag, key=''):
         return txt.strip(' \t\r\n') if txt else ''
 
 
+def get_cookies():
+    result = None
+    try:
+        f = open('.cookies.pkl')
+        result = pickle.load(f)
+        f.close()
+    except (IOError, ValueError):
+        return []
+    if result:
+        return result
+    return []
+
+
+def write_cookies(cookie):
+    cookies = get_cookies()
+    cookies.append(cookie)
+    with open('.cookies.pkl', 'wb') as f:
+        pickle.dump(cookies, f)
+
+
 class JDWrapper(object):
     '''
     This class used to simulate login JD
     '''
 
-    def __init__(self, usr_name=None, usr_pwd=None):
+    def __init__(self, usr_name=None, usr_pwd=None, cookies={}):
         # cookie info
         self.trackid = ''
         self.uuid = ''
@@ -98,9 +119,7 @@ class JDWrapper(object):
             'Connection': 'keep-alive',
         }
 
-        self.cookies = {
-
-        }
+        self.cookies = cookies
 
         '''
 		try:
@@ -201,7 +220,7 @@ class JDWrapper(object):
                 Use `login_by_QR`
         """
         # get login page
-        #resp = self.sess.get(self.home)
+        # resp = self.sess.get(self.home)
         print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         print u'{0} > 登陆'.format(time.ctime())
 
@@ -406,7 +425,7 @@ class JDWrapper(object):
         '''
         # http://ss.jd.com/ss/areaStockState/mget?app=cart_pc&ch=1&skuNum=3180350,1&area=1,72,2799,0
         #   response: {"3180350":{"a":"34","b":"1","c":"-1"}}
-        #stock_url = 'http://ss.jd.com/ss/areaStockState/mget'
+        # stock_url = 'http://ss.jd.com/ss/areaStockState/mget'
 
         # http://c0.3.cn/stocks?callback=jQuery2289454&type=getstocks&skuIds=3133811&area=1_72_2799_0&_=1490694504044
         #   jQuery2289454({"3133811":{"StockState":33,"freshEdi":null,"skuState":1,"PopType":0,"sidDely":"40","channel":1,"StockStateName":"现货","rid":null,"rfg":0,"ArrivalDate":"","IsPurchase":true,"rn":-1}})
@@ -416,7 +435,7 @@ class JDWrapper(object):
         payload = {
             'type': 'getstocks',
             'skuIds': str(stock_id),
-            'area': area_id or '1_72_2799_0',  # area change as needed
+            'area': area_id or '19_1607_3638_0',  # area change as needed
         }
 
         try:
@@ -483,7 +502,7 @@ class JDWrapper(object):
         # good stock
         good_data['stock'], good_data['stockName'] = self.good_stock(
             stock_id=stock_id, area_id=area_id)
-        #stock_str = u'有货' if good_data['stock'] == 33 else u'无货'
+        # stock_str = u'有货' if good_data['stock'] == 33 else u'无货'
 
         print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         print u'{0} > 商品详情'.format(time.ctime())
@@ -533,7 +552,7 @@ class JDWrapper(object):
                     stock_id=options.good, area_id=options.area)
 
             # retry detail
-            #good_data = self.good_detail(options.good)
+            # good_data = self.good_detail(options.good)
 
         # failed
         link = good_data['link']
