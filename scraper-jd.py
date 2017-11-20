@@ -20,6 +20,7 @@ import os
 import time
 import json
 import random
+import platform
 
 
 import argparse
@@ -323,7 +324,11 @@ class JDWrapper(object):
                     f.write(chunk)
 
             # scan QR code with phone
-            os.system('start ' + image_file)
+            # 简单的判断下是Mac还是windows
+            if platform.system().find('Windows') >= 0:
+                os.system('start ' + image_file)
+            else:
+                os.system('open ' + image_file)
 
             # step 3： check scan result
             # mush have
