@@ -22,6 +22,7 @@ import json
 import random
 import pickle
 import platform
+from datetime import datetime
 
 
 import argparse
@@ -84,6 +85,11 @@ def write_cookies(cookie):
     cookies.append(cookie)
     with open('.cookies.pkl', 'wb') as f:
         pickle.dump(cookies, f)
+
+
+def clear_cookies():
+    with open('.cookies.pkl', 'wb') as f:
+        pickle.dump([], f)
 
 
 class JDWrapper(object):
@@ -410,6 +416,8 @@ class JDWrapper(object):
                 self.cookies[k] = v
 
             print u'登陆成功'
+            # 放入pickle暂存
+            write_cookies(self.cookies)
             return True
 
         except Exception as e:
@@ -585,7 +593,7 @@ class JDWrapper(object):
             print 'Exp {0} : {1}'.format(FuncName(), e)
         else:
             self.cart_detail()
-            return self.order_info(options.submit)
+            return self.order_info()
 
         return False
 
@@ -652,7 +660,7 @@ class JDWrapper(object):
         except Exception, e:
             print 'Exp {0} : {1}'.format(FuncName(), e)
 
-    def order_info(self, submit=False):
+    def order_info(self, submit=True):
         # get order info detail, and submit order
         print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         print u'{0} > 订单详情'.format(time.ctime())
@@ -717,24 +725,55 @@ class JDWrapper(object):
         return False
 
 
-def main(options):
-    #
-    jd = JDWrapper()
-    if not jd.login_by_QR():
-        return
-
+def buy(cookie):
+    jd = JDWrapper(cookies=cookie)
     while not jd.buy(options) and options.flush:
         time.sleep(options.wait / 1000.0)
+
+
+def main(options):
+    # 把需要登录的账号全部登录
+    # 清空cookies
+    clear_cookies()
+    for idx in range(options.accounts):
+        jd = JDWrapper()
+        jd.login_by_QR()
+        time.sleep(10)
+
+    cookies = get_cookies()
+    if not cookies:
+        print '登录出错，退出'
+
+    while True:
+        # 等时间到
+        now = datetime.now()
+        print start_time
+        print now
+        if start_time <= now:
+            print(u'预设时间已过，直接开抢')
+            break
+        delta = (start_time - now).seconds
+        if delta < 10:
+            # 小于10s，直接去抢单页面
+            break
+        elif delta < 60:
+            print '还剩%s秒开始抢' % delta
+            time.sleep(4)
+        else:
+            print '还剩%s秒开始抢' % delta
+            time.sleep(30)
+
+    # 开抢
+    threads = []
+    [threads.append(gevent.spawn(buy, cookie)) for cookie in cookies]
+    gevent.joinall(threads)
+    print '抢购结束'
 
 
 if __name__ == '__main__':
     # help message
     parser = argparse.ArgumentParser(
         description='模拟登录京东账户，并且定时自动下单，支持多个账户')
-    # parser.add_argument('-u', '--username',
-    #					help='Jing Dong login user name', default='')
-    # parser.add_argument('-p', '--password',
-    #					help='Jing Dong login user password', default='')
     parser.add_argument('-g', '--good',
                         help='京东商品ID，来自URL, 多个用逗号分隔', default='')
     parser.add_argument('-c', '--count', type=int,
@@ -751,9 +790,6 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--flush',
                         action='store_true',
                         help='没货的情况下，是否继续刷新')
-    parser.add_argument('-s', '--submit',
-                        action='store_true',
-                        help='是否自动提交订单')
 
     # example goods
     hw_watch = '2567304'
@@ -761,6 +797,11 @@ if __name__ == '__main__':
 
     options = parser.parse_args()
     print options
+
+    # 开售时间
+    now = datetime.now()
+    start_time = datetime.strptime(options.time, '%H:%M').replace(
+        year=now.year, month=now.month, day=now.day)
 
     # for test
     if options.good == '':
